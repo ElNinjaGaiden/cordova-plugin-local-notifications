@@ -131,6 +131,17 @@
                     <action android:name="android.intent.action.BOOT_COMPLETED" />
                 </intent-filter>
             </receiver>
+
+            <receiver
+                android:name="de.appplant.cordova.plugin.localnotification.RemoteNotificationsReceiver">
+                <intent-filter>
+                    <action android:name="com.yoinbol.remotenotification.GameConfirmed" />
+                    <action android:name="com.yoinbol.remotenotification.GameCanceled" />
+                    <action android:name="com.yoinbol.remotenotification.GameInvitationAccepted" />
+                    <action android:name="com.yoinbol.remotenotification.GameInvitationRejected" />
+                </intent-filter>
+            </receiver>
+
         </config-file>
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
@@ -225,6 +236,11 @@
         <source-file
             src="src/android/notification/Request.java"
             target-dir="src/de/appplant/cordova/plugin/notification" />
+
+        <source-file
+            src="src/android/RemoteNotificationsReceiver.java"
+            target-dir="src/de/appplant/cordova/plugin/localnotification" />
+
     </platform>
 
     <!-- windows -->
