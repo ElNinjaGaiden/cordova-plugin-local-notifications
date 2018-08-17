@@ -49,4 +49,17 @@
 - (void) notification:(CDVInvokedUrlCommand*)command;
 - (void) notifications:(CDVInvokedUrlCommand*)command;
 
+// Custom code
+- (void) savePreferences:(CDVInvokedUrlCommand*)command;
+- (void) getPreferences:(CDVInvokedUrlCommand*)command;
+- (void) registerPushNotificationsObservers;
+- (void) setGameReminderNotification:(NSNotification *) notification;
+- (void) cancelGameReminderNotification:(NSNotification*) notification;
+- (NSDate*) parseGameDate:(NSDictionary *) notificationData;
+- (NSDate*) getNotificationDateTime:(NSDate*)gameDate offsetMinutesReminder:(NSNumber*) offsetMinutesReminder;
+- (NSMutableDictionary*) getGameReminderNotification:(NSDictionary*)gameData date:(NSDate*)notificationDate offsetMinutesReminder:(NSNumber*)offsetMinutesReminder;
+- (NSString*) getLocalizedString:(NSString*)key locale:(NSString*) locale;
+- (NSNumber*) getUserOffsetMinutesGamesReminder;
+// End custom code
+
 @end

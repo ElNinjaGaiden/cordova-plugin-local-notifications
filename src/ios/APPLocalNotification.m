@@ -565,6 +565,10 @@ UNNotificationPresentationOptions const OptionAlert = UNNotificationPresentation
     [_center registerGeneralNotificationCategory];
 
     [self monitorAppStateChanges];
+
+    // Custom code
+    [self registerPushNotificationsObservers];
+    // End custom code
 }
 
 /**
@@ -702,6 +706,173 @@ UNNotificationPresentationOptions const OptionAlert = UNNotificationPresentation
         [self.eventQueue addObject:js];
     }
 }
+
+// Custom code
+- (void) savePreferences:(CDVInvokedUrlCommand*)command {
+    NSArray* preferences = command.arguments;
+    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    [userDefaults setObject:preferences forKey:@"GAMES_PREFERENCES_KEY"];
+    [userDefaults synchronize];
+
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:result
+                                callbackId:command.callbackId];
+}
+
+- (void) getPreferences:(CDVInvokedUrlCommand*)command {
+    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    NSArray *preferences = [userDefaults objectForKey:@"GAMES_PREFERENCES_KEY"];
+
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                messageAsArray:preferences];
+    
+    [self.commandDelegate sendPluginResult:result
+                                callbackId:command.callbackId];
+}
+
+-(void) registerPushNotificationsObservers {
+
+    NSArray *notificationsToSetReminder = @[@"GameConfirmed", @"GameLocationAndTimeChanged", @"AttendingGame"];
+    NSArray *notificationsToCancelReminder = @[@"GameCanceled", @"NotAttendingGame"];
+
+    for (NSString* eventName in notificationsToSetReminder) {
+        NSString *notificationName = [NSString stringWithFormat:@"com.yoinbol.remotenotification.%@", eventName];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+            selector:@selector(setGameReminderNotification:) 
+            name:notificationName
+            object:nil];
+    }
+
+    for (NSString* eventName in notificationsToCancelReminder) {
+        NSString *notificationName = [NSString stringWithFormat:@"com.yoinbol.remotenotification.%@", eventName];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+            selector:@selector(cancelGameReminderNotification:) 
+            name:notificationName
+            object:nil];
+    }
+}
+
+-(void) setGameReminderNotification:(NSNotification *) notification {
+    
+    NSNumber* offsetMinutesReminder = [self getUserOffsetMinutesGamesReminder];
+    
+    if(offsetMinutesReminder != nil) {
+        
+        NSDictionary* notificationData = [notification userInfo];
+        NSDate *gameDate = [self parseGameDate:notificationData];
+        NSDate *notificationDateTime = [self getNotificationDateTime:gameDate offsetMinutesReminder:offsetMinutesReminder];
+        NSNumber* currentGameStatusId = [notificationData objectForKey:@"statusId"];
+        NSDictionary* customData = [notificationData objectForKey:@"customData"];
+        NSDate *now = [NSDate date];
+
+        BOOL userIsGoing = YES;
+
+        if([notificationDateTime earlierDate:now] && userIsGoing) {
+
+            NSNumber* gameId = [notificationData objectForKey:@"itemId"];
+            NSDictionary* localNotificationData = [self getGameReminderNotification:notificationData date:notificationDateTime offsetMinutesReminder:offsetMinutesReminder];
+            UNNotificationRequest* notificationReminder = [_center getNotificationWithId:gameId];
+
+            if(!notificationReminder) {
+                APPNotificationContent* newReminder = [[APPNotificationContent alloc] initWithOptions:localNotificationData];
+                [self scheduleNotification:newReminder];
+            }
+            else {
+                // The reminder does exists, we have to update it
+                [self updateNotification:[notificationReminder copy] withOptions:localNotificationData];
+            }
+        }
+        else {
+            // The user is not going or si too late to send a reminder
+            [self cancelGameReminderNotification:notification];
+        }
+    }
+    else {
+        // The user has no preference for the reminder set, which means we have to cancel the notification (if exists)
+        [self cancelGameReminderNotification:notification];
+    }
+}
+
+-(void) cancelGameReminderNotification:(NSNotification*) notification {
+    NSDictionary* notificationData = [notification userInfo];
+    NSNumber* gameId = [notificationData objectForKey:@"itemId"];
+    UNNotificationRequest* notificationReminder = [_center getNotificationWithId:gameId];
+
+    if (notification != nil) {
+        [_center cancelNotification:notificationReminder];
+    }
+}
+
+- (NSDate*) parseGameDate:(NSDictionary *) notificationData {
+    NSString *date = [notificationData objectForKey:@"date"];
+    NSDateFormatter *dateFormat = [NSDateFormatter new];
+    dateFormat.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss";
+    NSLocale* posix = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
+    dateFormat.locale = posix;
+    NSDate* gameDate = [dateFormat dateFromString:date];
+    return gameDate;
+}
+
+- (NSNumber*) getUserOffsetMinutesGamesReminder {
+    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    NSArray *preferences = [userDefaults objectForKey:@"GAMES_PREFERENCES_KEY"];
+    NSNumber *offsetMinutesReminder = nil;
+    
+    if([preferences count] > 0) {
+        offsetMinutesReminder = [preferences firstObject];
+    }
+    
+    return offsetMinutesReminder;
+}
+
+- (NSDate*) getNotificationDateTime:(NSDate*)gameDate offsetMinutesReminder:(NSNumber*) offsetMinutesReminder {
+    NSTimeInterval offsetSecondsReminder = [offsetMinutesReminder longValue] * 60 * -1;
+    NSDate *notificationTime = [gameDate dateByAddingTimeInterval:offsetSecondsReminder];
+    return  notificationTime;
+}
+
+-(NSMutableDictionary*) getGameReminderNotification:(NSMutableDictionary*)gameData date:(NSDate*)notificationDate offsetMinutesReminder:(NSNumber*)offsetMinutesReminder {
+    
+    NSError *jsonError;
+    NSString *baseData = @"{ \"actions\":[], \"attachments\":[], \"autoClear\":true, \"clock\":true, \"defaults\":0, \"groupSummary\":false, \"launch\":true, \"led\":true, \"lockscreen\":true, \"number\":0, \"priority\":0, \"progressBar\": { \"enabled\":false, \"value\":0, \"maxValue\":100, \"indeterminate\":false }, \"silent\":false, \"smallIcon\":\"icon2\", \"sound\":true, \"timeoutAfter\":false, \"vibrate\":true, \"wakeup\":true, \"meta\": { \"plugin\":\"cordova-plugin-local-notification\", \"version\":\"0.9-beta.3\" } }";
+    NSData *objectData = [baseData dataUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *notificationData = [NSJSONSerialization JSONObjectWithData:objectData
+                                                         options:NSJSONReadingMutableContainers
+                                                           error:&jsonError];
+    
+    NSDictionary* customData = [gameData objectForKey:@"customData"];
+    NSNumber* gameId = [gameData objectForKey:@"itemId"];
+    NSTimeInterval timeInterval = [notificationDate timeIntervalSince1970] * 1000;
+    NSMutableDictionary* trigger = [[NSMutableDictionary alloc] init];
+    [trigger setValue:@"calendar" forKey:@"type"];
+    [trigger setObject:[NSNumber numberWithDouble: timeInterval] forKey:@"at"];
+    NSString* languageId = [customData objectForKey:@"LanguageId"];
+    NSArray* languageIdParts = [languageId componentsSeparatedByString:@"-"];
+    NSString* locale = [languageIdParts firstObject];
+    NSString* sportsCenterName = [customData objectForKey:@"SportsCenterName"];
+
+    [notificationData setValue:gameId forKey:@"id"];
+    [notificationData setValue:[self getLocalizedString:@"gameReminderTitle" locale:locale] forKey:@"title"];
+    [notificationData setValue:[NSString stringWithFormat:[self getLocalizedString:@"gameReminderTextTpl" locale:locale], sportsCenterName, offsetMinutesReminder] forKey:@"text"];
+    [notificationData setValue:trigger forKey:@"trigger"];
+    
+    return  notificationData;
+}
+
+- (NSString*) getLocalizedString:(NSString*)key locale:(NSString*) locale {
+    NSDictionary *es = [[NSDictionary alloc] initWithObjectsAndKeys:@"¡Tú juego se acerca!", @"gameReminderTitle", @"Tú juego en %@ iniciará en %@ minutos", @"gameReminderTextTpl", nil];
+    NSDictionary *en = [[NSDictionary alloc] initWithObjectsAndKeys:@"Your game is coming!", @"gameReminderTitle", @"Your game at %@ will start on %@ minutes", @"gameReminderTextTpl", nil];
+    NSDictionary *locales = [[NSDictionary alloc] initWithObjectsAndKeys:es, @"es", en, @"en", nil];
+    NSDictionary* localeConfig = [locales objectForKey:locale];
+    
+    if(localeConfig != nil) {
+        NSString* localizedString = [localeConfig objectForKey:key];
+        return  localizedString;
+    }
+    
+    return nil;
+}
+// End custom code
 
 @end
 

@@ -1034,3 +1034,13 @@ channel.onCordovaReady.subscribe(function () {
         exports._setLaunchDetails();
     });
 });
+
+// Function to store games notifications preferences
+exports.savePreferences = function (preferences, callback, scope) {
+    this._exec('savePreferences', preferences, callback, scope);
+};
+
+// Function to retrieve games notifications preferences
+exports.getPreferences = function (callback, scope) {
+    this._exec('getPreferences', null, callback, scope);
+};

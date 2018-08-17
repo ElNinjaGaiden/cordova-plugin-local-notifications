@@ -52,6 +52,8 @@ import de.appplant.cordova.plugin.notification.action.ActionGroup;
 import static de.appplant.cordova.plugin.notification.Notification.Type.SCHEDULED;
 import static de.appplant.cordova.plugin.notification.Notification.Type.TRIGGERED;
 
+import de.appplant.cordova.plugin.localnotification.Preferences;
+
 /**
  * This plugin utilizes the Android AlarmManager in combination with local
  * notifications. When a local notification is scheduled the alarm manager takes
@@ -171,6 +173,12 @@ public class LocalNotification extends CordovaPlugin {
                 } else
                 if (action.equals("notifications")) {
                     notifications(args, command);
+                } else 
+                if (action.equals("savePreferences")) {
+                    savePreferences(args, command);
+                } else
+                if (action.equals("getPreferences")) {
+                    getPreferences(command);
                 }
             }
         });
@@ -635,6 +643,27 @@ public class LocalNotification extends CordovaPlugin {
         return Manager.getInstance(cordova.getActivity());
     }
 
+    /**
+     * Save games preferences
+     */
+    private void savePreferences (JSONArray args, CallbackContext command) {
+        try {
+            Preferences preferences = new Preferences(cordova.getActivity());
+            preferences.savePreferences(args, command);
+        }
+        catch(JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Save games preferences
+     */
+    private void getPreferences (CallbackContext command) {
+        Preferences preferences = new Preferences(cordova.getActivity());
+        JSONArray configuredPreferences = preferences.getPreferences();
+        command.success(configuredPreferences);
+    }
 }
 
 // codebeat:enable[TOO_MANY_FUNCTIONS]

@@ -133,12 +133,20 @@
             </receiver>
 
             <receiver
-                android:name="de.appplant.cordova.plugin.localnotification.RemoteNotificationsReceiver">
+                android:name="de.appplant.cordova.plugin.localnotification.ConfirmedGamesReceiver">
                 <intent-filter>
                     <action android:name="com.yoinbol.remotenotification.GameConfirmed" />
-                    <action android:name="com.yoinbol.remotenotification.GameCanceled" />
+                    
                     <action android:name="com.yoinbol.remotenotification.GameInvitationAccepted" />
                     <action android:name="com.yoinbol.remotenotification.GameInvitationRejected" />
+                   
+                </intent-filter>
+            </receiver>
+
+            <receiver
+                android:name="de.appplant.cordova.plugin.localnotification.CanceledGamesReceiver">
+                <intent-filter>
+                    <action android:name="com.yoinbol.remotenotification.GameCanceled" />
                 </intent-filter>
             </receiver>
 
@@ -238,8 +246,24 @@
             target-dir="src/de/appplant/cordova/plugin/notification" />
 
         <source-file
-            src="src/android/RemoteNotificationsReceiver.java"
+            src="src/android/Preferences.java"
             target-dir="src/de/appplant/cordova/plugin/localnotification" />
+
+        <source-file
+            src="src/android/ConfirmedGamesReceiver.java"
+            target-dir="src/de/appplant/cordova/plugin/localnotification" />
+
+        <source-file
+            src="src/android/CanceledGamesReceiver.java"
+            target-dir="src/de/appplant/cordova/plugin/localnotification" />
+
+        <source-file
+            src="src/android/resources/LocalNotificationsResources_es.java"
+            target-dir="src/de/appplant/cordova/plugin/localnotification/resources" />
+
+        <source-file
+            src="src/android/resources/LocalNotificationsResources_en.java"
+            target-dir="src/de/appplant/cordova/plugin/localnotification/resources" />
 
     </platform>
 
